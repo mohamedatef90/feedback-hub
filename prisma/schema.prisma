@@ -1,0 +1,210 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SourceType {
+  whatsapp
+  document
+  manual
+}
+
+enum FeedbackCategory {
+  bug
+  feature
+  complaint
+  question
+}
+
+enum FeedbackStatus {
+  new
+  triaged
+  in_progress
+  blocked
+  done
+}
+
+enum UserRole {
+  admin
+  pm
+  viewer
+}
+
+enum IntegrationStatus {
+  queued
+  sent
+  failed
+}
+
+model Project {
+  id               String           @id
+  name             String
+  owner            String
+  createdById      String?
+  totalComments    Int              @default(0)
+  openItems        Int              @default(0)
+  highPriority     Int              @default(0)
+  lastUpdate       DateTime         @default(now())
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  createdBy        User?            @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  members          ProjectMember[]
+  feedbackItems    FeedbackItem[]
+  ingestionBatches IngestionBatch[]
+  clusters         FeedbackCluster[]
+  aiRuns           AIProcessingRun[]
+
+  @@index([updatedAt])
+}
+
+model User {
+  id               String          @id @default(cuid())
+  email            String          @unique
+  name             String?
+  passwordHash     String
+  globalRole       UserRole        @default(viewer)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  memberships      ProjectMember[]
+  createdProjects  Project[]       @relation("ProjectCreator")
+}
+
+model ProjectMember {
+  id         String   @id @default(cuid())
+  projectId  String
+  userId     String
+  role       UserRole @default(viewer)
+  createdAt  DateTime @default(now())
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([userId])
+}
+
+model FeedbackItem {
+  id               String          @id
+  projectId        String
+  title            String
+  summary          String
+  source           SourceType
+  category         FeedbackCategory
+  moduleTag        String
+  status           FeedbackStatus
+  priority         Int
+  owner            String
+  mentions         Int             @default(1)
+  jiraKey          String?
+  aiConfidence     Float?
+  needsReview      Boolean         @default(false)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  project          Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  ingestionEntries IngestionEntry[]
+  clusterLinks     FeedbackClusterItem[]
+  notes            FeedbackNote[]
+  integrationEvents IntegrationEvent[]
+
+  @@index([projectId, createdAt(sort: Desc)])
+  @@index([status])
+  @@index([priority])
+}
+
+model IngestionBatch {
+  id            String          @id @default(cuid())
+  projectId     String
+  sourceType    SourceType
+  fileName      String
+  uploadedBy    String?
+  importedCount Int             @default(0)
+  createdAt     DateTime        @default(now())
+  project       Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  entries       IngestionEntry[]
+
+  @@index([projectId, createdAt(sort: Desc)])
+}
+
+model IngestionEntry {
+  id             String         @id @default(cuid())
+  batchId        String
+  lineNumber     Int
+  authorName     String?
+  messageTime    DateTime?
+  rawText        String
+  feedbackItemId String?
+  createdAt      DateTime       @default(now())
+  batch          IngestionBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  feedbackItem   FeedbackItem?  @relation(fields: [feedbackItemId], references: [id], onDelete: SetNull)
+
+  @@index([batchId])
+  @@index([feedbackItemId])
+}
+
+model FeedbackCluster {
+  id           String                @id @default(cuid())
+  projectId    String
+  canonicalKey String
+  summary      String
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+  items        FeedbackClusterItem[]
+  project      Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, canonicalKey])
+  @@index([projectId, updatedAt(sort: Desc)])
+}
+
+model FeedbackClusterItem {
+  id         String          @id @default(cuid())
+  clusterId  String
+  feedbackId String
+  createdAt  DateTime        @default(now())
+  cluster    FeedbackCluster @relation(fields: [clusterId], references: [id], onDelete: Cascade)
+  feedback   FeedbackItem    @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+
+  @@unique([clusterId, feedbackId])
+  @@index([feedbackId])
+}
+
+model FeedbackNote {
+  id         String       @id @default(cuid())
+  feedbackId String
+  author     String
+  role       UserRole
+  body       String
+  createdAt  DateTime     @default(now())
+  feedback   FeedbackItem @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+
+  @@index([feedbackId, createdAt(sort: Desc)])
+}
+
+model AIProcessingRun {
+  id             String   @id @default(cuid())
+  projectId      String
+  startedAt      DateTime @default(now())
+  finishedAt     DateTime?
+  processedCount Int      @default(0)
+  clusterCount   Int      @default(0)
+  status         String
+  error          String?
+  project        Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, startedAt(sort: Desc)])
+}
+
+model IntegrationEvent {
+  id         String            @id @default(cuid())
+  feedbackId String
+  provider   String
+  status     IntegrationStatus
+  externalId String?
+  message    String?
+  createdAt  DateTime          @default(now())
+  feedback   FeedbackItem      @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+
+  @@index([feedbackId, createdAt(sort: Desc)])
+}

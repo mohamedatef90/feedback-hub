@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #eef2f7;
+  --bg-soft: #e4ebf5;
+  --surface: #ffffff;
+  --surface-alt: #f7f9fc;
+  --text: #0f1728;
+  --muted: #5e6b82;
+  --line: #d2dce8;
+  --brand: #0f4d92;
+  --brand-strong: #0b3c70;
+  --ok: #1f7a51;
+  --warn: #a55f07;
+  --danger: #b42318;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  color: var(--text);
+  font-family: "Avenir Next", "Segoe UI", "SF Pro Text", "Helvetica Neue", sans-serif;
+  background:
+    radial-gradient(circle at 10% 0%, #dce7f8 0%, transparent 32%),
+    radial-gradient(circle at 95% 15%, #d7f0ef 0%, transparent 28%),
+    linear-gradient(180deg, var(--bg) 0%, #f4f7fb 100%);
+}
+
+code,
+pre {
+  font-family: "IBM Plex Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+}
+
+.card {
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-alt) 100%);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+}
+
+.badge {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 12px;
+  color: var(--muted);
+  background: #fff;
+}
